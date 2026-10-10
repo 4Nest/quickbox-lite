@@ -63,7 +63,7 @@ export function createConsoleRouter(dashboardDir: string, auth: ConsoleAuth) {
         if (!existsSync(index)) { res.status(503).send("请先构建控制台：cd setup/dashboard/ui && npm ci && npm run build"); return; }
         res.sendFile(index);
     };
-    router.get(["/console", "/console/", "/files", "/login", "/services", "/settings"], shell);
+    router.get(["/console", "/console/", "/files", "/login", "/services", "/settings", "/terminal"], shell);
     const files = createFileAccess();
     router.get(/^\/[A-Za-z0-9_-]+\.(?:qbittorrent|deluge|transmission|rtorrent)\.downloads(?:\/.*)?$/, async (req, res) => {
         const user = auth.identity(req);

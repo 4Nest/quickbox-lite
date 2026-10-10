@@ -9,13 +9,12 @@ import { Server as socketio } from "socket.io";
 import { WebSocketServer } from "ws";
 
 import logHandler from "./handlers/log";
-import messageHandler from "./handlers/message";
 import execHandler from "./handlers/exec";
 import i18nHandler from "./handlers/i18n";
 import { isTestMode } from "./testing";
-import { createAppRouter } from "./router";
 import { createConsoleAuth, sameOrigin } from "./console/auth";
 import { createConsoleRouter } from "./console/router";
+import { createTerminalProxy } from "./console/terminal";
 
 const app = express();
 app.set("trust proxy", "loopback");
@@ -25,8 +24,11 @@ const auth = createConsoleAuth();
 const consoleApp = createConsoleRouter(dashboardDir, auth);
 
 const server = http.createServer(app);
+const terminal = createTerminalProxy(auth);
+terminal.attach(server);
 const socketOptions = {
     wsEngine: WebSocketServer,
+    destroyUpgrade: false,
     allowRequest: (req: http.IncomingMessage, callback: (error: string | null, success: boolean) => void) => {
         callback(null, sameOrigin(req) && Boolean(auth.identity(req)));
     },
@@ -52,25 +54,20 @@ for (const socketServer of [io, wsPathIo]) {
         next();
     });
     socketServer.use(logHandler);
-    socketServer.use(messageHandler);
     socketServer.use(execHandler);
     socketServer.use(i18nHandler);
 }
+// Socket.IO must leave terminal upgrades alone, but unknown upgrade paths still fail closed.
+server.on("upgrade", (req, socket) => {
+    const url = req.url ?? "";
+    if (["/socket.io/", "/ws/socket.io/", "/terminal/session/"].some(prefix => url.startsWith(prefix))) { return; }
+    socket.end("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n");
+});
 
 app.use(consoleApp.router);
+app.use(terminal.router);
 app.get("/", consoleApp.shell);
-app.use((req, res, next) => {
-    if (!auth.identity(req)) {
-        if (req.method === "GET" && req.accepts("html")) { res.redirect("/login"); }
-        else { res.status(401).json({ error: "Unauthorized" }); }
-        return;
-    }
-    if (!sameOrigin(req)) { res.sendStatus(403); return; }
-    next();
-});
-const legacyApp = createAppRouter({ dashboardDir });
-app.use("/legacy", legacyApp);
-app.use(legacyApp);
+app.use((_req, res) => { res.sendStatus(404); });
 
 export { app };
 

@@ -25,15 +25,17 @@ npm run build
 - `/settings`：明暗主题、隐藏文件偏好、当前登录会话与维护日志。
 - `/login`：内置网页登录；沿用 QuickBox 管理员 htpasswd 密码。
 - `/USER.qbittorrent.downloads/`（以及 Deluge、Transmission、rTorrent）：进入对应下载目录，使用与面板一致的文件页。
-- `/legacy`：保留原面板，供 ruTorrent 插件等高级操作使用。
+- `/terminal`：独立 Web 终端；沿用当前登录会话，退出或改密后连接失效。
 
-文件页提供浏览、下载、文件及空目录删除，不提供移动、上传操作。删除前有确认弹窗；非空目录需先清空。默认只有 `/home/USER/torrents` 内可删除，系统路径保持只读。设置受限 `QUICKBOX_FILE_ROOT` 时，该根目录内可删除，但根目录本身不可删除。新面板优先使用中文；旧面板仍保留原有多语言功能。登录统一使用面板内置密码认证。
+旧 WebUI、`/legacy`、旧 `/node/*` 接口和 ruTorrent 插件管理页面已移除。ruTorrent 本身的应用入口保留。
+
+文件页提供浏览、下载、文件及空目录删除，不提供移动、上传操作。删除前有确认弹窗；非空目录需先清空。默认只有 `/home/USER/torrents` 内可删除，系统路径保持只读。设置受限 `QUICKBOX_FILE_ROOT` 时，该根目录内可删除，但根目录本身不可删除。新面板优先使用中文。登录统一使用面板内置密码认证。
 
 旧下载目录中的文件直链仍直接下载，目录链接进入统一文件页。下载支持断点续传，并从同一个已校验文件句柄读取，避免校验后路径被替换。受限根目录的下载使用 Linux `/proc/self/fd` 校验；非 Linux 本地预览在设置受限根目录时返回 503，不降低边界保护。
 
 ## 登录持久化
 
-勾选“记住我”使用 30 天 Cookie；未勾选使用浏览器会话 Cookie，服务端最长保留 12 小时。Cookie 设置 `HttpOnly`、`SameSite=Lax`，经 HTTPS 访问时设置 `Secure`。会话令牌为随机值，服务端只保存其摘要和密码指纹，目录为 `/srv/dashboard/db/sessions`。会话在服务重启后继续有效，退出或管理员密码变更后失效，WebSocket 每次接收命令前重新检查会话。
+勾选“记住密码”使用 30 天 Cookie；未勾选使用浏览器会话 Cookie，服务端最长保留 12 小时。Cookie 设置 `HttpOnly`、`SameSite=Lax`，经 HTTPS 访问时设置 `Secure`。会话令牌为随机值，服务端只保存其摘要和密码指纹，目录为 `/srv/dashboard/db/sessions`。会话在服务重启后继续有效，退出或管理员密码变更后失效，WebSocket 每次接收命令前重新检查会话。
 
 ## 可选环境变量
 
@@ -53,7 +55,7 @@ npm run build
 
 不要只复制前端文件：旧 Nginx Basic Auth 会先拦截浏览器，因此登录路由、API 与下载入口的 Nginx 配置必须一起迁移。实际升级前需确认正在运行的 QuickBox 目录、管理员账号、Nginx 站点，以及 ARM64 软件包兼容性。
 
-`qbDashboardPermissions` 让后端代码、命令白名单和会话归 root 管理，Web 工作进程只能读取静态文件。更新后仍会应用这些权限。注销或令牌轮换无法撤销旧会话时返回 503，浏览器保留原 Cookie 以便重试。
+`qbDashboardPermissions` 让后端代码、命令白名单和会话归 root 管理，Web 工作进程只能读取静态文件。更新后仍会应用这些权限。`qbDashboardCleanup` 将旧静态资源和 PHP 页面移到 `/root/quickbox-legacy-backup`，不再保留在站点目录中。注销或令牌轮换无法撤销旧会话时返回 503，浏览器保留原 Cookie 以便重试。
 
 Fork 部署可用 root 管理的 `/etc/quickbox-update-source.json` 固定更新来源，避免面板更新切回上游：
 

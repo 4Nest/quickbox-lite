@@ -1,0 +1,29 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Move obsolete web assets outside the document root, preserving a rollback copy.
+set -euo pipefail
+python3 - <<'PY'
+from pathlib import Path
+import os
+import shutil
+import time
+
+dashboard = Path(os.environ.get('QUICKBOX_DASHBOARD_DIR', '/srv/dashboard'))
+backup = Path(os.environ.get('QUICKBOX_LEGACY_BACKUP_DIR', '/root/quickbox-legacy-backup'))
+names = ('index.php', 'inc', 'widgets', 'custom', 'js', 'lib', 'fonts', 'img', 'skins',
+         'package.json', 'package-lock.json', 'eslint.config.mjs', 'fileshare')
+targets = [dashboard / name for name in names]
+targets += list(dashboard.glob('console-dist.previous-*'))
+targets += list((dashboard / 'lang').glob('*.png'))
+targets += [dashboard / 'db' / name for name in ('.smoked.lock', '.defaulted.lock')]
+existing = [target for target in targets if target.exists() or target.is_symlink()]
+if existing:
+    destination = backup / str(time.time_ns())
+    destination.mkdir(parents=True, mode=0o700)
+    backup.chmod(0o700)
+    for target in existing:
+        relative = target.relative_to(dashboard)
+        (destination / relative).parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(target), str(destination / relative))
+    print('旧 WebUI 已移出站点目录，备份：' + str(destination))
+PY

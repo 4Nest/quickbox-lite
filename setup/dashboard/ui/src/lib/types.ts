@@ -41,7 +41,6 @@ export interface Overview {
   menu: {
     installedMenuEntries: { name: string; url: string; logo?: string }[];
     installedDownloadEntries: { name: string; url: string }[];
-    showPluginTab: boolean;
     showWebConsole: boolean;
   };
 }

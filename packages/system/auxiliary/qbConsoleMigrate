@@ -27,6 +27,9 @@ if proxy_file.exists():
 for file in Path(os.environ.get('QUICKBOX_NGINX_DIR', '/etc/nginx/apps')).glob('*.conf'):
     original = file.read_text()
     content = original
+    # Remove the old ttyd Basic Auth bypass; only the session proxy may reach ttyd.
+    if file.name == admin + '.console.conf':
+        content = 'location ^~ /' + admin + '.console { return 404; }\n'
     # Match and replace whole location blocks, including nested PHP locations.
     matches = list(re.finditer(r'location\s+/' + re.escape(admin) + r'\.(?:qbittorrent|deluge|transmission|rtorrent)\.downloads\s*\{', content))
     for match in reversed(matches):
@@ -43,6 +46,12 @@ for file in Path(os.environ.get('QUICKBOX_NGINX_DIR', '/etc/nginx/apps')).glob('
 }'''
         content = content[:start] + replacement + content[end:]
     if file.name == 'dashboard.conf':
+        content = re.sub(r'\nlocation ~\* \^/\(\?:skins.*?\n\}', '', content, flags=re.S)
+        content = re.sub(r'^\s*rewrite \^/ws/.*\n', '', content, flags=re.M)
+        if 'location ^~ /legacy {' not in content:
+            content += '\nlocation ^~ /legacy { return 404; }\n'
+        if 'location ^~ /terminal/session/ {' not in content:
+            content += '\nlocation ^~ /terminal/session/ {\n    proxy_pass http://127.0.0.1:8575;\n    proxy_set_header Upgrade $http_upgrade;\n    proxy_set_header Connection "upgrade";\n    proxy_read_timeout 3600s;\n    include snippets/proxy.conf;\n}\n'
         # The console always uses its own persistent password session.
         if not re.search(r'location = /login \{', content):
             content += '\nlocation = /login {\n    proxy_pass http://127.0.0.1:8575;\n    include snippets/proxy.conf;\n    proxy_set_header X-Forwarded-User "";\n}\n'

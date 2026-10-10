@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Server-level smoke tests — verifies the app instance is exported correctly.
-// Full HTTP route coverage lives in router.spec.ts.
+// New API and terminal coverage lives in tests/console.
 
 import "mocha";
 import { expect } from "chai";
@@ -16,8 +16,7 @@ describe("server", () => {
     });
 
     it("should have 'trust proxy' set to 'loopback'", () => {
-        // Trust-proxy must be loopback so that X-Forwarded-For from non-local
-        // IPs causes /set to reject with 403.
+        // Forwarded headers are trusted only from the local reverse proxy.
         expect(app.get("trust proxy fn")).to.be.a("function");
     });
 });

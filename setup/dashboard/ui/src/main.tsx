@@ -37,7 +37,6 @@ import {
   Check,
   Copy,
   X,
-  ExternalLink,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -78,21 +77,24 @@ import { size, uptime } from "@/lib/format";
 import type { Session, Entry, Package, Overview, Operation } from "@/lib/types";
 import "./index.css";
 
-type Page = "overview" | "files" | "services" | "settings";
+type Page = "overview" | "files" | "services" | "settings" | "terminal";
 const icons = {
   overview: LayoutDashboard,
   files: Folder,
   services: Layers,
   settings: Settings,
+  terminal: Terminal,
 };
 const pages: { id: Page; label: string; href: string }[] = [
   { id: "overview", label: "总览", href: "/" },
   { id: "files", label: "文件", href: "/files" },
   { id: "services", label: "应用与服务", href: "/services" },
+  { id: "terminal", label: "Web 终端", href: "/terminal" },
   { id: "settings", label: "设置", href: "/settings" },
 ];
 function currentPage(): Page {
   const p = location.pathname;
+  if (p === "/terminal") return "terminal";
   return p === "/services"
     ? "services"
     : p === "/settings"
@@ -263,6 +265,7 @@ function Traffic({ samples }: { samples: { rx: number; tx: number }[] }) {
 function App() {
   const [session, setSession] = useState<Session | null>(null),
     [initialError, setInitialError] = useState("");
+  const [terminalVersion, setTerminalVersion] = useState(0);
   const [page, setPage] = useState<Page>(currentPage),
     [overview, setOverview] = useState<Overview | null>(null),
     [packages, setPackages] = useState<Package[]>([]),
@@ -858,11 +861,7 @@ function App() {
                         >
                           <div className="flex size-10 items-center justify-center rounded-lg bg-background">
                             {app.logo ? (
-                              <img
-                                src={`/${app.logo}`}
-                                className="size-6 object-contain"
-                                alt=""
-                              />
+                              <img src={app.logo} className="size-6 object-contain" alt="" />
                             ) : (
                               <Box className="size-5 text-primary" />
                             )}
@@ -1351,6 +1350,27 @@ function App() {
             </TabsContent>
           </Tabs>
         )}
+        {page === "terminal" && (
+          <section className="overflow-hidden rounded-xl border bg-card">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
+              <div>
+                <h2 className="text-sm font-semibold">Web 终端</h2>
+                <p className="mt-1 text-xs text-muted-foreground">当前账号：{session.user}</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setTerminalVersion(v => v + 1)}>
+                <RefreshCw /> 重新连接
+              </Button>
+            </div>
+            {overview?.menu.showWebConsole ? (
+              <iframe key={terminalVersion} title="Web 终端" src="/terminal/session/"
+                className="block h-[calc(100dvh-17rem)] min-h-80 w-full border-0 bg-black" />
+            ) : (
+              <div className="p-12 text-center text-sm text-muted-foreground">
+                {overview ? "Web 终端服务未运行，请在应用与服务中检查 ttyd。" : "正在连接…"}
+              </div>
+            )}
+          </section>
+        )}
         {page === "settings" && (
           <div className="max-w-3xl space-y-5">
             <section className="rounded-xl border bg-card">
@@ -1426,30 +1446,6 @@ function App() {
                 >
                   修复软件包
                 </Button>
-                {overview?.menu.showPluginTab && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a
-                      href="/legacy#plugins"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      ruTorrent 插件管理
-                      <ExternalLink />
-                    </a>
-                  </Button>
-                )}
-                {overview?.menu.showWebConsole && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a
-                      href="/legacy#console"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      终端
-                      <ExternalLink />
-                    </a>
-                  </Button>
-                )}
               </div>
             </section>
           </div>

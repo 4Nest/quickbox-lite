@@ -1,6 +1,5 @@
 # QuickBox Lite dashboard
 
-This  is a modified version of QuickBox CE dashboard. Most of the features are preserved: such as Package management center, service controller, network status chart...
+React、shadcn/ui 统一面板：总览、文件、应用服务、Web 终端与账号设置。
 
-The Realtime CPU/Network Graph are removed. Data refresh rate is slightly reduced to save computing resources. You can install Netdata to get more System information instead.
-
+构建和部署说明见 [ui/README.md](ui/README.md)。旧 PHP/SSR WebUI 已移除。

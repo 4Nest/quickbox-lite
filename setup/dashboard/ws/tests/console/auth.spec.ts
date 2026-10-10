@@ -255,8 +255,8 @@ describe("console authentication and file access", () => {
             else { process.env.QUICKBOX_FILE_ROOT = previousRoot; }
         }
     });
-    it("gates the real server data, file and legacy endpoints", async () => {
-        for (const url of ["/console/api/overview", "/console/api/services", "/console/api/files", "/node/dashboard_config"]) {
+    it("gates the real server data, file endpoints", async () => {
+        for (const url of ["/console/api/overview", "/console/api/services", "/console/api/files"]) {
             const res = await request(productionApp).get(url).set("Accept", "application/json");
             expect(res.status, url).to.equal(401);
         }

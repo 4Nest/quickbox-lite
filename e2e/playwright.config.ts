@@ -1,6 +1,6 @@
 import { defineConfig } from "@playwright/test";
 
-const baseURL = process.env.E2E_BASE_URL || "http://127.0.0.1:8880";
+const baseURL = process.env.E2E_BASE_URL || "http://127.0.0.1:18581";
 
 export default defineConfig({
     testDir: "./tests",
@@ -14,8 +14,7 @@ export default defineConfig({
         baseURL,
         trace: "on-first-retry",
         screenshot: "on",
-        // No auth in test Docker setup
-        httpCredentials: undefined,
+
     },
     projects: [
         {
@@ -26,13 +25,10 @@ export default defineConfig({
             },
         },
     ],
-    // Wait for the Docker services to be ready
-    webServer: process.env.E2E_BASE_URL
-        ? undefined
-        : {
-              command: "sh -c 'docker compose up -d nginx && trap \"exit 0\" INT TERM; while :; do sleep 3600; done'",
-              url: baseURL,
-              reuseExistingServer: true,
-              timeout: 60_000,
-          },
+    webServer: {
+        command: "node scripts/console-server.cjs",
+        url: baseURL + "/console/api/auth/session",
+        reuseExistingServer: false,
+        timeout: 30_000,
+    },
 });

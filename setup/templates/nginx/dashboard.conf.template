@@ -34,10 +34,15 @@ if ($query_string != "") {
   set $no_cache 1;
 }
 
-location ~* ^/(?:skins|lib|fonts|img|js|lang)/.*\.(?:css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|map|json)$ {
-    root /srv/dashboard;
-    try_files $uri =404;
-    access_log off;
+location ^~ /legacy { return 404; }
+
+# Terminal HTTP and WebSocket authentication is enforced by the Node proxy.
+location ^~ /terminal/session/ {
+    proxy_pass http://127.0.0.1:8575;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_read_timeout 3600s;
+    include snippets/proxy.conf;
 }
 
 location ^~ /db/ {
@@ -63,7 +68,6 @@ location ^~ /ws {
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
     include snippets/proxy.conf;
-    rewrite ^/ws/(?P<path>.*) /$path break;
 }
 
 location / {

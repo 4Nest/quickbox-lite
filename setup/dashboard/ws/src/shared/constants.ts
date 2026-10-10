@@ -5,7 +5,6 @@ import { existsSync, readFileSync } from "fs";
 export default class Constant {
     public static EVENT_CONNECTION = "connection";
     public static EVENT_DISCONNECT = "disconnect";
-    public static EVENT_MESSAGE = "message";
     public static EVENT_EXEC = "exec";
     public static EVENT_I18N = "i18n";
     public static TEMPLATE_OPERATION = "$operation$";

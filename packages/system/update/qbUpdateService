@@ -194,15 +194,6 @@ function _updateservice() {
 		service ttyd stop >/dev/null 2>&1
 		rm -f /etc/init.d/ttyd >/dev/null 2>&1
 
-		cat > /etc/nginx/apps/"${username}".console.conf <<WEBC
-location /${username}.console/ {
-	proxy_pass http://127.0.0.1:4200;
-	rewrite ^/${username}.console(?P<path>.*) /\$path break;
-$(bash /usr/local/bin/quickbox/system/auxiliary/qbNginxAuth proxy "/etc/htpasswd" "	")
-	proxy_set_header Upgrade \$http_upgrade;
-	proxy_set_header Connection "upgrade";
-}
-WEBC
 		cp ${local_setup_template}systemd/ttyd.service.template /etc/systemd/system/ttyd.service
 		sed -i "s/USERNAME/${username}/g" /etc/systemd/system/ttyd.service
 

@@ -30,6 +30,7 @@ def generate(root, backend_port=8575):
   }
 }
 ''')
+    (apps / (USER + '.console.conf')).write_text('location /testuser.console/ { proxy_pass http://127.0.0.1:4200; }\n')
     env = dict(os.environ, QUICKBOX_ADMIN_INFO=str(root / 'admin'), QUICKBOX_NGINX_DIR=str(apps),
                QUICKBOX_INSTALL_DIR=str(locks), QUICKBOX_AUTH_HELPER=str(AUTH_HELPER))
     for count in range(2):
@@ -40,6 +41,11 @@ def generate(root, backend_port=8575):
         previous = current
     assert current.count('location = /console/api/auth/session {') == 1
     assert current.count('location = /login {') == 1
+    assert '127.0.0.1:4200' not in (apps / (USER + '.console.conf')).read_text()
+    assert 'location ^~ /terminal/session/ {' in current
+    assert 'location ^~ /legacy { return 404; }' in current
+    assert 'root /srv/dashboard;' not in current
+    assert 'rewrite ^/ws/' not in current
     assert 'fancyindex' not in (apps / 'downloads.conf').read_text()
     (root / 'snippets').mkdir(exist_ok=True)
     (root / 'snippets/proxy.conf').write_text('''proxy_set_header Host $http_host;

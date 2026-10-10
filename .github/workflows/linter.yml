@@ -44,26 +44,23 @@ jobs:
       run: npm test -- --reporter dot
       working-directory: setup/dashboard/ws
 
-  es-linter-for-js:
-    runs-on: ubuntu-22.04
+    - name: Build backend and verify legacy cleanup
+      run: npm run build && python3 tests/console/check-cleanup.py
+      working-directory: setup/dashboard/ws
 
+  console-browser:
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-
-    - name: Install nodejs
-      uses: actions/setup-node@v4
+    - uses: actions/setup-node@v4
       with:
-        node-version: 20
-  
-    - name: Install dependencies
-      run: |
-        cd setup/dashboard || exit 1
-        npm ci --legacy-peer-deps
-
-    - name: Run linter
-      run: |
-          cd setup/dashboard || exit 1
-          npm run lint
+        node-version: 22
+    - run: npm ci && npm run build
+      working-directory: setup/dashboard/ui
+    - run: npm ci && npm run build
+      working-directory: setup/dashboard/ws
+    - run: npm ci && npx playwright install --with-deps chromium && npm test
+      working-directory: e2e
 
   shell-linter:
     runs-on: ubuntu-22.04

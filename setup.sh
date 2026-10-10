@@ -596,19 +596,6 @@ function _setvsftpd() {
 	systemctl start vsftpd >/dev/null 2>&1
 }
 
-function _askdashtheme() {
-	dash_theme=""
-	while [[ $dash_theme == "" ]]; do
-		dash_theme=$(
-			whiptail --title "$INFO_TITLE_THEME" --radiolist \
-				"$INFO_TEXT_THEME" 12 48 4 \
-				"defaulted" "$CHOICE_TEXT_THEME_1" off \
-				"smoked" "$CHOICE_TEXT_THEME_2" on \
-				3>&1 1>&2 2>&3
-		)
-	done
-}
-
 function _askchangetz() {
 	if (whiptail --title "$INFO_TITLE_TZ" --yesno "$INFO_TEXT_TZ" --yes-button "$BUTTON_YES" --no-button "$BUTTON_NO" --defaultno 8 72); then
 		dpkg-reconfigure tzdata
@@ -1008,19 +995,6 @@ function _webconsole() {
 	service ttyd stop >/dev/null 2>&1
 	rm -f /etc/init.d/ttyd >/dev/null 2>&1
 
-	if [[ ! -f /etc/nginx/apps/"${username}".console.conf ]]; then
-		cat > /etc/nginx/apps/"${username}".console.conf <<WEBC
-location /${username}.console/ {
-    proxy_pass http://127.0.0.1:4200;
-    rewrite ^/${username}.console(?P<path>.*) /\$path break;
-    auth_basic "password Required";
-    auth_basic_user_file /etc/htpasswd;
-    proxy_set_header Upgrade \$http_upgrade;
-    proxy_set_header Connection "upgrade";
-}
-WEBC
-	fi
-
 	cp ${local_setup_template}systemd/ttyd.service.template /etc/systemd/system/ttyd.service
 	sed -i "s/USERNAME/${username}/g" /etc/systemd/system/ttyd.service
 
@@ -1042,7 +1016,7 @@ function _insdashboard() {
 	cd && mkdir -p /srv/dashboard
 	\cp -fR ${local_setup_dashboard}. /srv/dashboard
 	touch /srv/dashboard/db/output.log
-	/usr/local/bin/quickbox/system/theme/themeSelect-"${dash_theme}"
+	bash /usr/local/bin/quickbox/system/auxiliary/qbDashboardCleanup
 	IFACE=$(ip link show | grep -i broadcast | grep -m1 UP | cut -d: -f 2 | cut -d@ -f 1 | sed -e 's/ //g')
 	echo "${IFACE}" >/srv/dashboard/db/interface.txt
 	echo "${username}" >/srv/dashboard/db/master.txt
@@ -1457,7 +1431,6 @@ ${INFO_TEXT_SUMMARY_4} ${ip}:$sshport\n\
 ${INFO_TEXT_SUMMARY_5} $username\n\
 ${INFO_TEXT_SUMMARY_6} $password\n\
 $(if [[ $ftp == 1 ]]; then printf "${INFO_TEXT_SUMMARY_11} $ftp_ip:5757"; fi)\n\
-${INFO_TEXT_SUMMARY_12} $dash_theme ${INFO_TEXT_SUMMARY_13}\
 $(if [[ $chsource == 1 ]]; then printf "\n${INFO_TEXT_SUMMARY_14}"; fi)\
 $(case "${cdn}" in
 	cf) echo -e "\nCloudflare ${INFO_TEXT_SUMMARY_19}";;
@@ -1494,7 +1467,6 @@ $(if [[ $autoreboot == 1 ]]; then echo -e "\n${INFO_TEXT_SUMMARY_17}\n"; fi)\
 				"user name" "$CHOICE_TEXT_EDIT_3" \
 				"password" "$CHOICE_TEXT_EDIT_4" \
 				"ftp" "$CHOICE_TEXT_EDIT_7" \
-				"dashboard theme" "$CHOICE_TEXT_EDIT_8" \
 				"source.list" "$CHOICE_TEXT_EDIT_9" \
 				"cdn" "$CHOICE_TEXT_EDIT_13" \
 				"auth provider" "$CHOICE_TEXT_EDIT_15" \
@@ -1509,7 +1481,6 @@ $(if [[ $autoreboot == 1 ]]; then echo -e "\n${INFO_TEXT_SUMMARY_17}\n"; fi)\
 		"user name") _askusrname ;;
 		"password") _askpasswd ;;
 		"ftp") _askvsftpd ;;
-		"dashboard theme") _askdashtheme ;;
 		"source.list") _askchsource ;;
 		"cdn") _askcdn ;;
 		"auth provider") _askauthprovider ;;
@@ -1541,7 +1512,6 @@ function _usage() {
   -r, --reboot                     reboot after installation finished (default no)
   -s, --source <us|au|cn|fr|de|jp|ru|uk|tuna>  
                                    choose apt source (default unchange)
-  -t, --theme <defaulted|smoked>   choose a theme for your dashboard (default smoked)
   --tz,--timezone <timezone>       setup a timezone for server (e.g. GMT-8 or Europe/Berlin)
   --lang <en|zh>                   choose a TUI language (default english)
   --with-log,no-log                install with log to file or not (default yes)
@@ -1604,7 +1574,6 @@ chport=4747
 chsource=0
 enable_bbr=0
 autoreboot=3
-dash_theme="smoked"
 hostname=""
 timezone=""
 domain=""
@@ -1781,7 +1750,6 @@ function _validate_loaded_config() {
 	_validate_username "$username" || exit 1
 	_validate_password "$password" || exit 1
 	_validate_port "$chport" || exit 1
-	_validate_enum "theme" "$dash_theme" "defaulted|smoked" || exit 1
 	_validate_enum "apt source" "$mirror" "us|au|cn|fr|de|jp|ru|uk|tuna" || exit 1
 	_validate_enum "CDN option" "$cdn" "cf|sf|osdn|github" || exit 1
 	_validate_enum "auth provider" "$auth_provider" "none|authelia|vouchproxy" || exit 1
@@ -1839,7 +1807,6 @@ function _load_config() {
 	password=$(jq -r '.password // ""' "$config_file")
 	ftp=$(jq -r 'if .ftp then "1" else "0" end' "$config_file")
 	ftp_ip=$(jq -r '.ftp_ip // ""' "$config_file")
-	dash_theme=$(jq -r '.theme // "smoked"' "$config_file")
 	timezone=$(jq -r '.timezone // ""' "$config_file")
 	chsource=$(jq -r 'if .mirror and .mirror != "us" then "1" else "0" end' "$config_file")
 	mirror=$(jq -r '.mirror // "us"' "$config_file")
@@ -1941,7 +1908,6 @@ function _generate_config() {
 		--arg password "${password}" \
 		--argjson ftp "$ftp_value" \
 		--arg ftp_ip "${ftp_ip}" \
-		--arg theme "${dash_theme}" \
 		--arg timezone "${timezone}" \
 		--arg mirror "${mirror}" \
 		--arg cdn "${cdn}" \
@@ -1970,7 +1936,7 @@ function _generate_config() {
 		--arg lecert_domain "${lecert_domain}" \
 		--arg rtorrent_gui "${rtgui}" \
 		--argjson packages "$packages_json" \
-		'{lang: $lang, log: $log, hostname: $hostname, ssh_port: $ssh_port, username: $username, password: $password, ftp: $ftp, ftp_ip: $ftp_ip, theme: $theme, timezone: $timezone, mirror: $mirror, cdn: $cdn, auth_provider: $auth_provider, auth_domain: $auth_domain, authelia: {mode: $authelia_mode, admin_email: $admin_email, smtp_host: $smtp_host, smtp_port: $smtp_port, smtp_username: $smtp_username, smtp_password: $smtp_password, smtp_sender: $smtp_sender}, vouch: {oidc_auth_url: $oidc_auth_url, oidc_token_url: $oidc_token_url, oidc_userinfo_url: $oidc_userinfo_url, oidc_client_id: $oidc_client_id, oidc_client_secret: $oidc_client_secret, oidc_end_session_endpoint: $oidc_end_session_endpoint, oidc_user: $oidc_user, oidc_user_map: $oidc_user_map, email_domains: $email_domains}, packages: $packages, rtorrent_gui: $rtorrent_gui, deny_tracker: $deny_tracker, bbr: $bbr, swap_path: $swap_path, autoreboot: $autoreboot, lecert_domain: $lecert_domain}' \
+		'{lang: $lang, log: $log, hostname: $hostname, ssh_port: $ssh_port, username: $username, password: $password, ftp: $ftp, ftp_ip: $ftp_ip, timezone: $timezone, mirror: $mirror, cdn: $cdn, auth_provider: $auth_provider, auth_domain: $auth_domain, authelia: {mode: $authelia_mode, admin_email: $admin_email, smtp_host: $smtp_host, smtp_port: $smtp_port, smtp_username: $smtp_username, smtp_password: $smtp_password, smtp_sender: $smtp_sender}, vouch: {oidc_auth_url: $oidc_auth_url, oidc_token_url: $oidc_token_url, oidc_userinfo_url: $oidc_userinfo_url, oidc_client_id: $oidc_client_id, oidc_client_secret: $oidc_client_secret, oidc_end_session_endpoint: $oidc_end_session_endpoint, oidc_user: $oidc_user, oidc_user_map: $oidc_user_map, email_domains: $email_domains}, packages: $packages, rtorrent_gui: $rtorrent_gui, deny_tracker: $deny_tracker, bbr: $bbr, swap_path: $swap_path, autoreboot: $autoreboot, lecert_domain: $lecert_domain}' \
 	)
 	
 	if echo "$config_json" | jq empty 2>/dev/null; then
@@ -1988,7 +1954,7 @@ function _generate_config() {
 #################################################################################
 # OPT GENERATOR
 #################################################################################
-if ! ARGS=$(getopt -a -o c:d:hrH:p:P:s:t:u: -l config:,allow-http-config,generate-config,config-output:,skip-summary,domain:,help,ftp-ip:,lang:,reboot,with-log,no-log,with-ftp,no-ftp,with-bbr,no-bbr,with-cf,with-sf,with-osdn,with-github,auth-provider:,auth-mode:,admin-email:,smtp-host:,smtp-port:,smtp-username:,smtp-password:,smtp-sender:,oidc-auth-url:,oidc-token-url:,oidc-userinfo-url:,oidc-client-id:,oidc-client-secret:,oidc-end-session-endpoint:,oidc-user:,oidc-user-map:,oidc-email-domains:,with-rtorrent,with-rutorrent,with-flood,with-transmission,with-qbittorrent,with-deluge,with-mktorrent,with-ffmpeg,with-filebrowser,with-linuxrar,qbittorrent-version:,deluge-version:,qbit-libt-version:,de-libt-version:,rtorrent-version:,transmission-version:,hostname:,port:,username:,password:,source:,theme:,tz:,timezone: -- "$@")
+if ! ARGS=$(getopt -a -o c:d:hrH:p:P:s:u: -l config:,allow-http-config,generate-config,config-output:,skip-summary,domain:,help,ftp-ip:,lang:,reboot,with-log,no-log,with-ftp,no-ftp,with-bbr,no-bbr,with-cf,with-sf,with-osdn,with-github,auth-provider:,auth-mode:,admin-email:,smtp-host:,smtp-port:,smtp-username:,smtp-password:,smtp-sender:,oidc-auth-url:,oidc-token-url:,oidc-userinfo-url:,oidc-client-id:,oidc-client-secret:,oidc-end-session-endpoint:,oidc-user:,oidc-user-map:,oidc-email-domains:,with-rtorrent,with-rutorrent,with-flood,with-transmission,with-qbittorrent,with-deluge,with-mktorrent,with-ffmpeg,with-filebrowser,with-linuxrar,qbittorrent-version:,deluge-version:,qbit-libt-version:,de-libt-version:,rtorrent-version:,transmission-version:,hostname:,port:,username:,password:,source:,tz:,timezone: -- "$@")
 then
 	_usage
     exit 1
@@ -2059,14 +2025,6 @@ while true; do
 		shift
 		;;
 	-r | --reboot) autoreboot=1; _cli_override[autoreboot]=1 ;;
-	-t | --theme)
-		if ! _validate_enum "theme" "$2" "defaulted|smoked"; then
-			exit 1
-		fi
-		dash_theme="$2"
-		_cli_override[dash_theme]="$2"
-		shift
-		;;	
 	--tz | --timezone)
 		timezone="$2"
 		_cli_override[timezone]="$2"
@@ -2263,7 +2221,6 @@ elif [[ $onekey == 0 ]]; then
 	_askusrname
 	_askpasswd
 	_askvsftpd
-	_askdashtheme
 	_askchangetz
 	_askchsource
 	_askcdn
