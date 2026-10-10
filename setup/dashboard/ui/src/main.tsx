@@ -71,6 +71,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Brand } from "@/components/brand";
+import { AppDescription } from "@/components/app-description";
 import { Login } from "@/pages/login";
 import { api } from "@/lib/api";
 import { size, uptime } from "@/lib/format";
@@ -1231,7 +1232,7 @@ function App() {
                         <Badge variant="secondary">已安装</Badge>
                       </div>
                       <p className="mt-4 mb-5 text-xs leading-5 text-muted-foreground">
-                        {pkg.description}
+                        <AppDescription description={pkg.description} />
                       </p>
                       {pkg.services.map((service) => (
                         <div
@@ -1327,7 +1328,7 @@ function App() {
                     >
                       <h3 className="text-sm font-semibold">{pkg.name}</h3>
                       <p className="mt-3 mb-5 flex-1 text-xs leading-5 text-muted-foreground">
-                        {pkg.description}
+                        <AppDescription description={pkg.description} />
                       </p>
                       <Button
                         variant="outline"
