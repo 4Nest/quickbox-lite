@@ -8,6 +8,7 @@ export interface Entry {
   symlink: boolean;
   size: number;
   modified: string;
+  deletable: boolean;
 }
 export interface Service {
   key: string;

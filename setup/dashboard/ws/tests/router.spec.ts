@@ -5,7 +5,8 @@ import "mocha";
 import { expect } from "chai";
 import express from "express";
 import path from "path";
-import { readFileSync } from "fs";
+import fs, { readFileSync } from "fs";
+import sinon from "sinon";
 import request from "supertest";
 import childProcess from "child_process";
 
@@ -67,6 +68,15 @@ describe("router — HTTP routes", () => {
     // ── Root ─────────────────────────────────────────────────────────────────
 
     describe("GET /", () => {
+        let sourceRead: sinon.SinonStub, developerProbe: sinon.SinonStub;
+        beforeEach(() => {
+            // Locale assertions use a standard update channel, independent of the host deployment.
+            sourceRead = sinon.stub(fs, "readFileSync").callThrough();
+            sourceRead.withArgs("/etc/quickbox-update-source.json", "utf8").throws(new Error("No fixture update source"));
+            developerProbe = sinon.stub(fs, "existsSync").callThrough();
+            developerProbe.withArgs("/install/.developer.lock").returns(false);
+        });
+        afterEach(() => { sourceRead.restore(); developerProbe.restore(); });
         it("should return 200 with the Node-rendered dashboard shell", async () => {
             const res = await request(app).get("/");
             expect(res.status).to.equal(200);

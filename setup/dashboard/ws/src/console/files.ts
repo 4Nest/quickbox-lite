@@ -5,6 +5,7 @@ import { constants } from "fs";
 import { pipeline } from "stream/promises";
 import express from "express";
 import type { ConsoleAuth } from "./auth";
+import { createFileDeletion } from "./delete-files";
 
 export function createFileAccess(root = process.env.QUICKBOX_FILE_ROOT ?? "/") {
     const withinRoot = (realRoot: string, target: string) => {
@@ -59,10 +60,12 @@ export function createFileAccess(root = process.env.QUICKBOX_FILE_ROOT ?? "/") {
 export function createFileRouter(auth: ConsoleAuth, root = process.env.QUICKBOX_FILE_ROOT ?? "/") {
     const router = express.Router();
     router.use(auth.requireUser);
+    router.use(express.json({ limit: "4kb" }));
     const { resolveFile, download } = createFileAccess(root);
     router.get("/", async (req, res) => {
         try {
             const { target, displayPath } = await resolveFile(req.query.path ?? "/");
+            const deletion = createFileDeletion(root, auth.identity(req) ?? "");
             const info = await stat(target);
             if (!info.isDirectory()) { res.status(400).json({ error: "请选择一个目录。" }); return; }
             const entries = await readdir(target, { withFileTypes: true });
@@ -74,7 +77,8 @@ export function createFileRouter(auth: ConsoleAuth, root = process.env.QUICKBOX_
                         const resolved = await resolveFile(path.posix.join(displayPath, entry.name));
                         const metadata = await stat(resolved.target);
                         if (!metadata.isDirectory() && !metadata.isFile()) { return null; }
-                        return { name: entry.name, path: path.posix.join(displayPath, entry.name), directory: metadata.isDirectory(), symlink: entry.isSymbolicLink(), size: metadata.size, modified: metadata.mtime.toISOString() };
+                        const entryPath = path.posix.join(displayPath, entry.name);
+                        return { name: entry.name, path: entryPath, directory: metadata.isDirectory(), symlink: entry.isSymbolicLink(), size: metadata.size, modified: metadata.mtime.toISOString(), deletable: await deletion.allowed(entryPath) };
                     } catch { return null; }
                 }));
                 items.push(...batch.filter(item => item !== null));
@@ -87,5 +91,17 @@ export function createFileRouter(auth: ConsoleAuth, root = process.env.QUICKBOX_
         }
     });
     router.get("/download", (req, res) => download(req, res, req.query.path));
+    router.delete("/", auth.writeGuard, async (req, res) => {
+        try {
+            const body = req.body as { path?: unknown } | undefined;
+            await createFileDeletion(root, auth.identity(req) ?? "").remove(body?.path);
+            res.json({ ok: true });
+        } catch (error) {
+            const code = (error as NodeJS.ErrnoException).code;
+            if (code === "ENOENT") { res.status(404).json({ error: "文件已不存在，请刷新目录。" }); }
+            else if (code === "ENOTEMPTY" || code === "EEXIST") { res.status(409).json({ error: "目录不是空的，请先删除目录中的文件。" }); }
+            else { res.status(403).json({ error: "无法删除。仅允许操作下载目录内的文件和空目录。" }); }
+        }
+    });
     return router;
 }

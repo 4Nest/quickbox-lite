@@ -38,6 +38,7 @@ import {
   Copy,
   X,
   ExternalLink,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -280,6 +281,8 @@ function App() {
     [sort, setSort] = useState<"name" | "size" | "date">("name"),
     [descending, setDescending] = useState(false);
   const [pathInput, setPathInput] = useState("/");
+  const [deleteEntry, setDeleteEntry] = useState<Entry | null>(null),
+    [deleting, setDeleting] = useState(false);
   const socketRef = useRef<Socket | null>(null),
     fileRequest = useRef(0),
     userRef = useRef(session?.user);
@@ -420,6 +423,23 @@ function App() {
   function openFolder(path: string) {
     history.pushState({}, "", `/files?path=${encodeURIComponent(path)}`);
     void loadFiles(path);
+  }
+  async function removeEntry() {
+    if (!deleteEntry || deleting) return;
+    setDeleting(true);
+    try {
+      await api<{ ok: boolean }>("/files", {
+        method: "DELETE",
+        body: JSON.stringify({ path: deleteEntry.path }),
+      });
+      setDeleteEntry(null);
+      toast.success("已删除");
+      await loadFiles(filePath);
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setDeleting(false);
+    }
   }
   async function logout() {
     try {
@@ -1119,6 +1139,15 @@ function App() {
                               <Copy />
                               复制路径
                             </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant="destructive"
+                              disabled={!entry.deletable || deleting}
+                              onClick={() => setDeleteEntry(entry)}
+                            >
+                              <Trash2 />
+                              删除{entry.directory ? "空目录" : "文件"}
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -1366,8 +1395,8 @@ function App() {
                   <span>密码与浏览器会话</span>
                 </div>
                 <p className="text-xs leading-6 text-muted-foreground">
-                  勾选“记住我”后，登录最长保留 30
-                  天。退出登录会立即撤销当前浏览器的会话。
+                  勾选“记住密码”后，下次打开浏览器会保持登录。
+                  退出登录会立即撤销当前浏览器的会话。
                 </p>
                 <Button variant="outline" size="sm" onClick={logout}>
                   <LogOut />
@@ -1450,6 +1479,30 @@ function App() {
             </Button>
             <Button disabled={busy} onClick={run}>
               确认操作
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={!!deleteEntry}
+        onOpenChange={(open) => { if (!open && !deleting) setDeleteEntry(null); }}
+      >
+        <DialogContent showCloseButton={!deleting} onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          document.getElementById("cancel-file-delete")?.focus();
+        }}>
+          <DialogHeader>
+            <DialogTitle>删除{deleteEntry?.directory ? "空目录" : "文件"}？</DialogTitle>
+            <DialogDescription>
+              此操作无法撤销。{deleteEntry?.directory ? "只能删除空目录。" : "正在做种或下载的文件被删除后，相关任务可能受影响。"}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="break-all rounded-lg bg-muted p-3 text-sm">{deleteEntry?.path}</p>
+          <DialogFooter>
+            <Button id="cancel-file-delete" variant="outline" disabled={deleting} onClick={() => setDeleteEntry(null)}>取消</Button>
+            <Button variant="destructive" disabled={deleting} onClick={removeEntry}>
+              {deleting ? <LoaderCircle className="animate-spin" /> : <Trash2 />}
+              {deleting ? "正在删除…" : "确认删除"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -161,6 +161,46 @@ describe("console authentication and file access", () => {
         expect((await request(app).get("/files/download").query({ path: target }).set("Cookie", cookie)).status).to.equal(200);
     });
     const linuxIt = process.platform === "linux" ? it : it.skip;
+    linuxIt("requires same-origin authentication and only deletes files, links and empty directories", async () => {
+        const app = build(), cookie = await login(app);
+        const remove = (target: string) => request(app).delete("/files").set(headers).set("Cookie", cookie).send({ path: target });
+        expect((await request(app).delete("/files").set(headers).send({ path: "/hello.txt" })).status).to.equal(401);
+        expect((await request(app).delete("/files").set("Cookie", cookie).send({ path: "/hello.txt" })).status).to.equal(403);
+        expect((await remove("/hello.txt").set("Origin", "https://attacker.example")).status).to.equal(403);
+        expect((await remove("/")).status).to.equal(403);
+        expect((await remove("/../outside.txt")).status).to.equal(403);
+        writeFileSync(path.join(directory, "files", "nested", "keep.txt"), "keep");
+        expect((await remove("/nested")).status).to.equal(409);
+        expect((await remove("/escape.txt")).status).to.equal(200);
+        expect(readFileSync(path.join(directory, "outside.txt"), "utf8")).to.equal("private-content");
+        expect((await remove("/nested/keep.txt")).status).to.equal(200);
+        expect((await remove("/nested")).status).to.equal(200);
+        expect((await remove("/hello.txt")).status).to.equal(200);
+        expect((await remove("/hello.txt")).status).to.equal(404);
+    });
+    linuxIt("keeps system paths read-only when browsing the whole machine", async () => {
+        const auth = createConsoleAuth({ user: "nest", credentialFile, sessionDir });
+        const app = express(); app.use("/auth", auth.router); app.use("/files", createFileRouter(auth, "/"));
+        const cookie = await login(app);
+        expect((await request(app).delete("/files").set(headers).set("Cookie", cookie).send({ path: path.join(directory, "files", "hello.txt") })).status).to.equal(403);
+        expect(fs.existsSync(path.join(directory, "files", "hello.txt"))).to.equal(true);
+    });
+    linuxIt("does not delete outside the configured root after a parent directory is swapped", async () => {
+        mkdirSync(path.join(directory, "files", "nested", "inner"));
+        writeFileSync(path.join(directory, "files", "nested", "inner", "item.txt"), "allowed");
+        mkdirSync(path.join(directory, "outside-parent", "inner"), { recursive: true });
+        writeFileSync(path.join(directory, "outside-parent", "inner", "item.txt"), "private");
+        const app = build(), cookie = await login(app), originalOpen = fs.promises.open;
+        sinon.stub(fs.promises, "open").callsFake(async (file, flags, mode) => {
+            if (String(file) === path.join(directory, "files", "nested", "inner")) {
+                fs.renameSync(path.join(directory, "files", "nested"), path.join(directory, "saved-nested"));
+                symlinkSync(path.join(directory, "outside-parent"), path.join(directory, "files", "nested"));
+            }
+            return originalOpen(file, flags, mode);
+        });
+        expect((await request(app).delete("/files").set(headers).set("Cookie", cookie).send({ path: "/nested/inner/item.txt" })).status).to.equal(403);
+        expect(readFileSync(path.join(directory, "outside-parent", "inner", "item.txt"), "utf8")).to.equal("private");
+    });
     linuxIt("rejects an out-of-root parent directory swapped after path resolution", async () => {
         writeFileSync(path.join(directory, "files", "nested", "item.txt"), "allowed-content");
         mkdirSync(path.join(directory, "outside-parent"));

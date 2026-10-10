@@ -160,7 +160,7 @@ export function Login({
                   onCheckedChange={(value) => setRemember(value === true)}
                 />
                 <Label htmlFor="remember" className="font-normal">
-                  记住我，保持登录 30 天
+                  记住密码
                 </Label>
               </div>
               {error && (

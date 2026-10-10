@@ -27,7 +27,7 @@ npm run build
 - `/USER.qbittorrent.downloads/`（以及 Deluge、Transmission、rTorrent）：进入对应下载目录，使用与面板一致的文件页。
 - `/legacy`：保留原面板，供 ruTorrent 插件等高级操作使用。
 
-文件页当前提供浏览与下载，不提供删除、移动、上传操作。新面板优先使用中文；旧面板仍保留原有多语言功能。登录统一使用面板内置密码认证。
+文件页提供浏览、下载、文件及空目录删除，不提供移动、上传操作。删除前有确认弹窗；非空目录需先清空。默认只有 `/home/USER/torrents` 内可删除，系统路径保持只读。设置受限 `QUICKBOX_FILE_ROOT` 时，该根目录内可删除，但根目录本身不可删除。新面板优先使用中文；旧面板仍保留原有多语言功能。登录统一使用面板内置密码认证。
 
 旧下载目录中的文件直链仍直接下载，目录链接进入统一文件页。下载支持断点续传，并从同一个已校验文件句柄读取，避免校验后路径被替换。受限根目录的下载使用 Linux `/proc/self/fd` 校验；非 Linux 本地预览在设置受限根目录时返回 503，不降低边界保护。
 
@@ -45,6 +45,7 @@ npm run build
 | `QUICKBOX_HTPASSWD_FILE` | `/etc/htpasswd.d/htpasswd.USER` | 管理员密码文件 |
 | `QUICKBOX_DASHBOARD_DB_DIR` | `/srv/dashboard/db` | 会话和操作输出的持久化目录 |
 | `QUICKBOX_FILE_ROOT` | `/` | 文件浏览范围；可限制到 `/home/USER`，符号链接不能越过该边界 |
+| `QUICKBOX_DELETE_ROOTS` | 管理员 torrents 目录或受限浏览根目录 | 可删除目录，多个绝对路径用 `:` 分隔；目录本身受保护 |
 
 ## 现有安装升级
 
