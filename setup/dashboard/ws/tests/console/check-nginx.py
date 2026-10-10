@@ -51,6 +51,9 @@ def generate(root, backend_port=8575):
     (root / 'snippets/proxy.conf').write_text('''proxy_set_header Host $http_host;
 proxy_set_header X-Forwarded-Proto $scheme;
 proxy_http_version 1.1;
+proxy_read_timeout 240;
+proxy_send_timeout 240;
+proxy_set_header Connection "";
 ''')
     config = '\n'.join(file.read_text() for file in apps.glob('*.conf'))
     config = config.replace('127.0.0.1:8575', '127.0.0.1:' + str(backend_port))
