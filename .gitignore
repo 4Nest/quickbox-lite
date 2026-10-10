@@ -57,3 +57,6 @@ node_modules/
 # Key file for localazy
 localazy.keys.json
 !setup/dashboard/ws/src/vendor/
+
+# Prebuilt console assets ship with the installer.
+!setup/dashboard/console-dist/assets/

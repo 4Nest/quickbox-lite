@@ -9,10 +9,10 @@ import { readFileSync } from "fs";
 import request from "supertest";
 import childProcess from "child_process";
 
-// Import the fully-configured app (trust proxy + router mounted) rather than
-// the raw router, so middleware interactions (e.g. loopback detection) behave
-// exactly as in production.
-import { app } from "../src/server";
+// Exercise the legacy router with loopback proxy settings.
+// Session enforcement is covered by console authentication tests.
+import { createControllerTestApp } from "./controllers/test-utils";
+const app = createControllerTestApp();
 import { createAppRouter } from "../src/router";
 
 interface SystemStaticResponse {

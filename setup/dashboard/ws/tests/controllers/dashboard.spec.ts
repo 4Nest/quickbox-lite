@@ -4,7 +4,8 @@ import "mocha";
 import { expect } from "chai";
 import request from "supertest";
 
-import { app } from "../../src/server";
+import { createControllerTestApp as createLegacyTestApp } from "./test-utils";
+const app = createLegacyTestApp();
 
 describe("controllers/dashboard", () => {
     it("should render dashboard shell smoke contract", async () => {

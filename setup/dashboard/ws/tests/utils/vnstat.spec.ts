@@ -4,6 +4,7 @@ import "mocha";
 import { expect } from "chai";
 import fs from "fs";
 import path from "path";
+import sinon from "sinon";
 
 import { getVnstatData } from "../../src/utils/vnstat";
 
@@ -21,9 +22,13 @@ const cleanupDumpFiles = () => {
 };
 
 describe("vnstat utils", () => {
+    let binaryProbe: sinon.SinonStub;
     before(() => {
         fs.mkdirSync(dumpsDir, { recursive: true });
+        const exists = fs.existsSync;
+        binaryProbe = sinon.stub(fs, "existsSync").callsFake(file => String(file) === "/usr/bin/vnstat" ? false : exists(file));
     });
+    after(() => { binaryProbe.restore(); });
 
     afterEach(() => {
         cleanupDumpFiles();

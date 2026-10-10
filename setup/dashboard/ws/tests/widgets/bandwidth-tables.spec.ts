@@ -4,6 +4,7 @@ import "mocha";
 import { expect } from "chai";
 import fs from "fs";
 import path from "path";
+import sinon from "sinon";
 
 import { bwTables } from "../../src/widgets/bandwidth-tables";
 
@@ -76,12 +77,16 @@ const createFixture = (iface: string) => {
 };
 
 describe("widgets/bandwidth-tables", () => {
+    let binaryProbe: sinon.SinonStub;
     const testIface = "bwtable-test-iface";
     const dumpPath = path.join(dumpsDir, `vnstat_dump_${testIface}`);
 
     before(() => {
         fs.mkdirSync(dumpsDir, { recursive: true });
+        const exists = fs.existsSync;
+        binaryProbe = sinon.stub(fs, "existsSync").callsFake(file => String(file) === "/usr/bin/vnstat" ? false : exists(file));
     });
+    after(() => { binaryProbe.restore(); });
 
     beforeEach(() => {
         fs.writeFileSync(dumpPath, JSON.stringify(createFixture(testIface)), "utf8");

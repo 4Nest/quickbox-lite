@@ -5,6 +5,9 @@ After=network.target
 
 [Service]
 Type=simple
+User=root
+Group=root
+UMask=0077
 # Debug endpoints are enabled only when NODE_ENV is not production.
 Environment=NODE_ENV=production
 ExecStart=/usr/bin/node /srv/dashboard/ws/dist/server.js

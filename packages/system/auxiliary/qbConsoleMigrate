@@ -1,0 +1,70 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Migrate existing dashboard and torrent directory listings to the shared console.
+set -euo pipefail
+python3 - <<'PY'
+from pathlib import Path
+import re
+import subprocess
+import os
+
+admin = Path(os.environ.get('QUICKBOX_ADMIN_INFO', '/root/.admin.info')).read_text().split(':', 1)[0].strip()
+if not re.fullmatch(r'[A-Za-z0-9_-]+', admin):
+    raise SystemExit('Invalid QuickBox admin username')
+helper = os.environ.get('QUICKBOX_AUTH_HELPER', '/usr/local/bin/quickbox/system/auxiliary/qbNginxAuth')
+auth = subprocess.check_output(['bash', helper, 'console-proxy', '/etc/htpasswd.d/htpasswd.' + admin, '    '], text=True)
+# Preserve the browser's authority and real proxy scheme for same-origin checks.
+proxy_file = Path(os.environ.get('QUICKBOX_NGINX_DIR', '/etc/nginx/apps')).parent / 'snippets/proxy.conf'
+if proxy_file.exists():
+    original = proxy_file.read_text()
+    content = original.replace('\\$', '$')
+    content = re.sub(r'^proxy_set_header Host .*;', 'proxy_set_header Host $http_host;', content, flags=re.M)
+    content = re.sub(r'^proxy_set_header X-Forwarded-Proto .*;', 'proxy_set_header X-Forwarded-Proto $scheme;', content, flags=re.M)
+    if content != original:
+        backup = proxy_file.with_suffix('.conf.pre-console')
+        if not backup.exists(): backup.write_text(original)
+        proxy_file.write_text(content)
+for file in Path(os.environ.get('QUICKBOX_NGINX_DIR', '/etc/nginx/apps')).glob('*.conf'):
+    original = file.read_text()
+    content = original
+    # Match and replace whole location blocks, including nested PHP locations.
+    matches = list(re.finditer(r'location\s+/' + re.escape(admin) + r'\.(?:qbittorrent|deluge|transmission|rtorrent)\.downloads\s*\{', content))
+    for match in reversed(matches):
+        start, end, depth = match.start(), match.end(), 1
+        while end < len(content) and depth:
+            if content[end] == '{': depth += 1
+            elif content[end] == '}': depth -= 1
+            end += 1
+        if depth:
+            raise SystemExit('Unbalanced nginx location in ' + str(file))
+        replacement = match.group(0) + '\n' + auth + '''
+    proxy_pass http://127.0.0.1:8575;
+    include snippets/proxy.conf;
+}'''
+        content = content[:start] + replacement + content[end:]
+    if file.name == 'dashboard.conf':
+        # The console always uses its own persistent password session.
+        if not re.search(r'location = /login \{', content):
+            content += '\nlocation = /login {\n    proxy_pass http://127.0.0.1:8575;\n    include snippets/proxy.conf;\n    proxy_set_header X-Forwarded-User "";\n}\n'
+        content = re.sub(r'\nlocation = /console/api/auth/session \{.*?\n\}', '', content, flags=re.S)
+        content = re.sub(r'\nlocation @quickbox_session_unauthorized \{.*?\n\}', '', content, flags=re.S)
+        content += '\nlocation = /console/api/auth/session {\n    proxy_set_header X-Forwarded-User "";\n    proxy_pass http://127.0.0.1:8575;\n    include snippets/proxy.conf;\n}\n'
+        content = re.sub(r'\nlocation \^~ /console/api/ \{.*?\n\}', '', content, flags=re.S)
+        content = re.sub(r'\nlocation @quickbox_api_unauthorized \{.*?\n\}', '', content, flags=re.S)
+        api_auth = re.sub(r'^\s*error_page 401 .*?;\s*$', '    error_page 401 = @quickbox_api_unauthorized;', auth, flags=re.M)
+        content += '\nlocation ^~ /console/api/ {\n' + api_auth + '\n    proxy_pass http://127.0.0.1:8575;\n    include snippets/proxy.conf;\n}\n'
+        content += '\nlocation @quickbox_api_unauthorized {\n    default_type application/json;\n    add_header Cache-Control "no-store" always;\n    return 401 \'{"error":"登录已过期，请重新登录。"}\';\n}\n'
+        for location in ('/ws', '/'):
+            pattern = r'(location ' + re.escape('^~ /ws' if location == '/ws' else '/') + r' \{\n)(.*?)(\n\})'
+            def replace_auth(match):
+                body = match.group(2)
+                body = re.sub(r'^\s*# qb-auth-(?:basic-user-file|mode):.*\n?', '', body, flags=re.M)
+                body = re.sub(r'^\s*(?:satisfy any;|allow 127\.0\.0\.1;|deny all;|auth_basic(?:_user_file)? .*;|auth_request .*;|auth_request_set .*;|error_page 401 .*;|proxy_set_header X-Forwarded-User .*;)\n?', '', body, flags=re.M)
+                return match.group(1) + auth + body + match.group(3)
+            content = re.sub(pattern, replace_auth, content, flags=re.S)
+    content = re.sub(r'\n{3,}', '\n\n', content).rstrip() + '\n'
+    if content != original:
+        backup = file.with_suffix('.conf.pre-console')
+        if not backup.exists(): backup.write_text(original)
+        file.write_text(content)
+PY

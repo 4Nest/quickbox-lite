@@ -360,20 +360,6 @@
             }
         }
     }, {
-        "package"     : "authelia",
-        "name"        : "Authelia",
-        "description" : "AUTHELIA",
-        "lockfile"    : "/install/.authelia.lock",
-        "uninstall"   : "UNINSTALL_AUTHELIA_TXT",
-        "boxonly"     : true,
-        "services"    : {
-            "authelia" : {
-                "name"        : "Authelia",
-                "username"    : "www-data",
-                "systemdUnit" : "authelia"
-            }
-        }
-    }, {
         "package"     : "transmission",
         "name"        : "Transmission",
         "description" : "TRANSMISSION",
@@ -413,20 +399,6 @@
                 "process"  : "qBittorrent-ClientBlocker",
                 "name"     : "qBittorrent-ClientBlocker",
                 "username" : "$username$"
-            }
-        }
-    }, {
-        "package"     : "vouchproxy",
-        "name"        : "Vouch Proxy",
-        "description" : "VOUCHPROXY",
-        "lockfile"    : "/install/.vouchproxy.lock",
-        "uninstall"   : "UNINSTALL_VOUCHPROXY_TXT",
-        "boxonly"     : true,
-        "services"    : {
-            "vouch-proxy" : {
-                "name"        : "Vouch Proxy",
-                "username"    : "www-data",
-                "systemdUnit" : "vouch-proxy"
             }
         }
     }, {

@@ -29,7 +29,7 @@ function _updatedashboard() {
 	_info "Updating QuickBox dashboard..."
 	# Update dashboard config
 	cd /srv/dashboard || exit 1
-	_execute "rsync -aP --delete --exclude=output.log  --exclude=interface.txt --exclude=master.txt --exclude=.smoked.lock --exclude=.defaulted.lock --exclude=custom.css ${local_setup_dashboard}* /srv/dashboard"
+	_execute "rsync -aP --delete --exclude=output.log  --exclude=interface.txt --exclude=master.txt --exclude=.smoked.lock --exclude=.defaulted.lock --exclude=custom.css --exclude=sessions ${local_setup_dashboard}* /srv/dashboard"
 	username=$(cat /root/.admin.info | cut -d: -f1)
 	\cp -f ${local_setup_template}nginx/dashboard.conf.template /etc/nginx/apps/dashboard.conf
 	python3 - "/etc/nginx/apps/dashboard.conf" "/etc/htpasswd.d/htpasswd.${username}" <<'PYEOF'
@@ -52,8 +52,8 @@ def auth_snippet(mode: str) -> list[str]:
 with open(path, encoding="utf-8") as f:
 	lines = f.readlines()
 
-plain_auth = auth_snippet("plain")
-proxy_auth = auth_snippet("proxy")
+plain_auth = ["    return 404;\n"]
+proxy_auth = auth_snippet("console-proxy")
 location_path = ""
 out = []
 i = 0
@@ -78,8 +78,10 @@ while i < len(lines):
 with open(path, "w", encoding="utf-8") as f:
 	f.writelines(out)
 PYEOF
+	_execute "bash /usr/local/bin/quickbox/system/auxiliary/qbConsoleMigrate"
 	cd /srv/dashboard/ws || exit 1
 	_execute "npm ci --production"
+	bash /usr/local/bin/quickbox/system/auxiliary/qbDashboardPermissions
 	\cp -f ${local_setup_template}systemd/quickbox-ws.service.template /etc/systemd/system/quickbox-ws.service
 	_execute "systemctl daemon-reload"
 	_execute "systemctl enable quickbox-ws.service"
@@ -93,7 +95,7 @@ PYEOF
 	else
 		_execute "bash /usr/local/bin/quickbox/system/theme/themeSelect-smoked"
 	fi
-	chown -R www-data:www-data /srv/dashboard
+	bash /usr/local/bin/quickbox/system/auxiliary/qbDashboardPermissions
 	_execute "nginx -s reload"
 	_success "QuickBox dashboard updated"
 }

@@ -1046,9 +1046,10 @@ function _insdashboard() {
 	IFACE=$(ip link show | grep -i broadcast | grep -m1 UP | cut -d: -f 2 | cut -d@ -f 1 | sed -e 's/ //g')
 	echo "${IFACE}" >/srv/dashboard/db/interface.txt
 	echo "${username}" >/srv/dashboard/db/master.txt
-	chown -R www-data: /srv/dashboard
+	bash /usr/local/bin/quickbox/system/auxiliary/qbDashboardPermissions
 	cp ${local_setup_template}nginx/dashboard.conf.template /etc/nginx/apps/dashboard.conf
 	sed -i "s/\/etc\/htpasswd/\/etc\/htpasswd.d\/htpasswd.${username}/g" /etc/nginx/apps/dashboard.conf
+	bash /usr/local/bin/quickbox/system/auxiliary/qbConsoleMigrate
 	service nginx force-reload >/dev/null 2>&1
 	case $uilang in
 	"en")

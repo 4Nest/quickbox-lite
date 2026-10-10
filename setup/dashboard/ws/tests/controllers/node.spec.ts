@@ -1,11 +1,12 @@
+import packageMetadata from "../../package.json";
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 import "mocha";
 import { expect } from "chai";
 import request from "supertest";
 
-import { app } from "../../src/server";
 import { createControllerTestApp, createExecFileRecorder } from "./test-utils";
+const app = createControllerTestApp();
 
 interface SystemStaticResponse {
     cpu: {
@@ -46,7 +47,7 @@ describe("controllers/node", () => {
         const res = await request(app).get("/node/dashboard_config");
 
         expect(res.status).to.equal(200);
-        expect(res.body).to.have.property("version", "v1.5.12");
+        expect(res.body).to.have.property("version", `v${packageMetadata.version}`);
         expect(res.body).to.have.property("branch").that.is.a("string");
         expect(res.body).to.have.property("languages").that.is.an("array").with.length.greaterThan(0);
         expect((res.body as DashboardConfigResponse).languages[0]).to.have.keys(["file", "key", "title", "locale"]);

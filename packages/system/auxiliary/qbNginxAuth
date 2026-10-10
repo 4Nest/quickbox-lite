@@ -9,60 +9,22 @@ set -euo pipefail
 MODE="${1:-}"
 HTPASSWD_PATH="${2:-}"
 INDENT="${3:-  }"
-PROVIDER="${QB_AUTH_PROVIDER:-auto}"
 
 case "$MODE" in
-  plain|proxy|fastcgi)
+  plain|proxy|fastcgi|console|console-proxy)
     ;;
   *)
-    echo "Usage: qbNginxAuth <plain|proxy|fastcgi> <htpasswd-path> [indent]" >&2
+    echo "Usage: qbNginxAuth <plain|proxy|fastcgi|console|console-proxy> <htpasswd-path> [indent]" >&2
     exit 1
     ;;
 esac
 
-if [[ "$PROVIDER" == "auto" ]]; then
-  if [[ -f /install/.authelia.lock ]]; then
-    PROVIDER="authelia"
-  elif [[ -f /install/.vouchproxy.lock ]]; then
-    PROVIDER="vouch"
-  else
-    PROVIDER="basic"
+if [[ "$MODE" == "console" || "$MODE" == "console-proxy" ]]; then
+  printf '%sauth_request /quickbox/authz;\n' "$INDENT"
+  printf '%serror_page 401 = /login;\n' "$INDENT"
+  if [[ "$MODE" == "console-proxy" ]]; then
+    printf '%sproxy_set_header X-Forwarded-User "";\n' "$INDENT"
   fi
-fi
-
-if [[ "$PROVIDER" == "vouch" ]]; then
-  printf '%s# qb-auth-basic-user-file: %s\n' "$INDENT" "$HTPASSWD_PATH"
-  printf '%s# qb-auth-mode: %s\n' "$INDENT" "$MODE"
-  printf '%sauth_request /validate;\n' "$INDENT"
-  printf '%serror_page 401 = @qb_vouch_signin;\n' "$INDENT"
-  printf '%sauth_request_set $auth_resp_x_vouch_user $upstream_http_x_vouch_user;\n' "$INDENT"
-
-  case "$MODE" in
-    proxy)
-      printf '%sproxy_set_header X-Forwarded-User $qb_vouch_local_user;\n' "$INDENT"
-      ;;
-    fastcgi)
-      printf '%sfastcgi_param REMOTE_USER $qb_vouch_local_user;\n' "$INDENT"
-      printf '%sfastcgi_param AUTH_USER $qb_vouch_local_user;\n' "$INDENT"
-      ;;
-  esac
-elif [[ "$PROVIDER" == "authelia" ]]; then
-  printf '%s# qb-auth-basic-user-file: %s\n' "$INDENT" "$HTPASSWD_PATH"
-  printf '%s# qb-auth-mode: %s\n' "$INDENT" "$MODE"
-  printf '%sauth_request /authelia/authz;\n' "$INDENT"
-  printf '%sauth_request_set $redirection_url $upstream_http_location;\n' "$INDENT"
-  printf '%serror_page 401 =302 $redirection_url;\n' "$INDENT"
-  printf '%sauth_request_set $auth_resp_remote_user $upstream_http_remote_user;\n' "$INDENT"
-
-  case "$MODE" in
-    proxy)
-      printf '%sproxy_set_header X-Forwarded-User $qb_authelia_local_user;\n' "$INDENT"
-      ;;
-    fastcgi)
-      printf '%sfastcgi_param REMOTE_USER $qb_authelia_local_user;\n' "$INDENT"
-      printf '%sfastcgi_param AUTH_USER $qb_authelia_local_user;\n' "$INDENT"
-      ;;
-  esac
 else
   printf '%sauth_basic "Password Required";\n' "$INDENT"
   printf '%sauth_basic_user_file %s;\n' "$INDENT" "$HTPASSWD_PATH"

@@ -69,6 +69,10 @@ export const dashboardBandwidthPages: DashboardBandwidthPage[] = [
 ];
 
 export function getDashboardBranch() {
+    try {
+        const source = JSON.parse(readFileSync("/etc/quickbox-update-source.json", "utf8")) as { branch?: unknown };
+        if (typeof source.branch === "string" && source.branch) { return source.branch; }
+    } catch { /* Use the standard update channel when no custom source is configured. */ }
     if (!existsSync("/install/.developer.lock")) {
         return "master";
     }
@@ -87,42 +91,16 @@ export function getDashboardBranch() {
 
 export function dashboardConfig() {
     const version = getDashboardVersion();
-    const ssoLogoutUrl = getSsoLogoutUrl();
-    const hasVouchProxy = existsSync("/install/.vouchproxy.lock");
-    const hasAuthelia = existsSync("/install/.authelia.lock");
 
     return {
         username,
         version,
         branch: getDashboardBranch(),
         showDeveloper: existsSync("/install/.developer.lock"),
-        hasVouchProxy,
-        hasAuthelia,
-        hasExternalAuth: hasVouchProxy || hasAuthelia,
-        ssoLogoutUrl,
         languages: dashboardLanguages,
         themes: dashboardThemes,
         bwPages: dashboardBandwidthPages.map((page) => ({ ...page, title: i18n.t(page.title) })),
     };
-}
-
-function getSsoLogoutUrl() {
-    if (existsSync("/install/.authelia.lock")) {
-        return "/";
-    }
-
-    const vouchConfigPath = "/opt/vouch-proxy/config.yml";
-    if (!existsSync(vouchConfigPath)) {
-        return "/";
-    }
-
-    try {
-        const content = readFileSync(vouchConfigPath, "utf8");
-        const match = content.match(/^\s*end_session_endpoint:\s*['"]?([^'"\n]+)['"]?\s*$/m);
-        return match?.[1]?.trim() || "/";
-    } catch {
-        return "/";
-    }
 }
 
 function getDashboardVersion() {

@@ -38,7 +38,6 @@ const menuEntries: MenuEntry[] = [
     { package: "jellyfin", name: "Jellyfin", url: "/jellyfin/", logo: "img/brands/jellyfin.png" },
     { package: "netdata", name: "NetData", url: "/netdata/", logo: "img/brands/netdata.png" },
     { package: "novnc", name: "noVNC", url: "/vnc/", logo: "img/brands/novnc.png" },
-    { package: "authelia", name: "Authelia", url: "/authelia/", logo: "img/brands/authelia.png" },
     { package: "pbh", name: "PeerBanHelper", url: "/pbh/", logo: "img/brands/peerbanhelper.png" },
     { package: "plex", name: "Plex", url: "/web/", logo: "img/brands/plex.png" },
     { package: "rclone", name: "Rclone", url: "/rclone/", logo: "img/brands/rclone.png" },

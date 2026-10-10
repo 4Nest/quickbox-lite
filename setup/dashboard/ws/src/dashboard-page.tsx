@@ -227,13 +227,6 @@ export function DashboardPage({ basePath, locale, menuState, ssrFragments }: Das
                                                 {config.branch === "development" ? (
                                                     <li><a data-click-handler="boxHandler" data-package="" data-operation="disable-dev" data-toggle="modal" data-target="#sysResponse" style={{ cursor: "pointer" }} dangerouslySetInnerHTML={{ __html: i18n.t("SWITCH_MASTER") }}></a></li>
                                                 ) : null}
-                                                {config.hasExternalAuth ? (
-                                                    <li>
-                                                        <a href={`/logout?url=${encodeURIComponent(config.ssoLogoutUrl || "/")}`}>
-                                                            <i className="fa fa-sign-out text-warning"></i>{i18n.t("SSO_LOGOUT_TXT")}
-                                                        </a>
-                                                    </li>
-                                                ) : null}
                                                 <li style={{ borderTop: "1px solid #444" }}>
                                                     <a href="https://github.com/amefs/quickbox-lite/issues/new" target="_blank" rel="noopener noreferrer"><i className="fa fa-warning text-warning"></i>{i18n.t("ISSUE_REPORT_TXT")}</a>
                                                 </li>

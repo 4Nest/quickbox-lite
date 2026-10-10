@@ -28,7 +28,23 @@ function _error() {
 function _updateRepo() {
 	_info "Updating QuickBox local repository..."
 	BRANCH="https://github.com/amefs/quickbox-lite.git"
-	if [[ -f /install/.legacy.lock ]]; then
+	# A fork deployment can pin its update source without changing developer mode.
+	if [[ -f /etc/quickbox-update-source.json ]]; then
+		local custom_repo custom_branch
+		custom_repo=$(python3 -c 'import json; print(json.load(open("/etc/quickbox-update-source.json"))["repository"])') || return 1
+		custom_branch=$(python3 -c 'import json; print(json.load(open("/etc/quickbox-update-source.json"))["branch"])') || return 1
+		if [[ ! "$custom_repo" =~ ^https://github.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(\.git)?$ ]] || ! git check-ref-format --branch "$custom_branch" >/dev/null; then
+			_error "Invalid custom QuickBox update source"
+			return 1
+		fi
+		if [[ -d /etc/QuickBox/.git ]]; then
+			git -C /etc/QuickBox remote set-url origin "$custom_repo" || return 1
+			git -C /etc/QuickBox fetch origin "$custom_branch" || return 1
+			git -C /etc/QuickBox checkout -B "$custom_branch" "origin/$custom_branch" || return 1
+		else
+			git clone --recursive --branch "$custom_branch" "$custom_repo" /etc/QuickBox || return 1
+		fi
+	elif [[ -f /install/.legacy.lock ]]; then
 		if $(grep -qv "branch \"legacy\"" /etc/QuickBox/.git/config); then
 			rm -rf "/etc/QuickBox"
 			_execute "git clone --recursive ${BRANCH} --branch legacy /etc/QuickBox"

@@ -520,6 +520,7 @@ ExecReload=/bin/kill -s HUP $MAINPID
 WantedBy=multi-user.target
 TSD
 	_execute "systemctl daemon-reload"
+	_execute "bash /usr/local/bin/quickbox/system/auxiliary/qbConsoleMigrate"
 	_execute "nginx -s reload"
 	_success "${APP_TITLE} configured."
 }

@@ -1,3 +1,31 @@
+# The React shell and login API are public; data and file APIs require a session.
+location = /quickbox/authz {
+    internal;
+    proxy_pass http://127.0.0.1:8575/console/api/auth/validate;
+    proxy_pass_request_body off;
+    proxy_set_header Content-Length "";
+    proxy_set_header Host $host;
+    proxy_set_header Cookie $http_cookie;
+    proxy_set_header X-Forwarded-User "";
+}
+
+location ^~ /console-assets/ {
+    alias /srv/dashboard/console-dist/;
+    autoindex off;
+}
+
+location = /login {
+    proxy_pass http://127.0.0.1:8575;
+    include snippets/proxy.conf;
+    proxy_set_header X-Forwarded-User "";
+}
+
+location ^~ /console/api/auth/ {
+    proxy_pass http://127.0.0.1:8575;
+    include snippets/proxy.conf;
+    proxy_set_header X-Forwarded-User "";
+}
+
 if ($request_method = POST) {
   set $no_cache 1;
 }
@@ -13,11 +41,7 @@ location ~* ^/(?:skins|lib|fonts|img|js|lang)/.*\.(?:css|js|png|jpg|jpeg|gif|svg
 }
 
 location ^~ /db/ {
-    satisfy any;
-    allow 127.0.0.1;
-    deny all;
-    auth_basic "password Required";
-    auth_basic_user_file /etc/htpasswd;
+    return 404;
 }
 
 location ^~ /db/master.txt {

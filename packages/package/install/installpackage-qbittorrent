@@ -528,6 +528,7 @@ WantedBy=multi-user.target
 QBS
 
 	_execute "systemctl daemon-reload"
+	_execute "bash /usr/local/bin/quickbox/system/auxiliary/qbConsoleMigrate"
 	_execute "nginx -s reload"
 	_success "${APP_TITLE} configured."
 }

@@ -1,0 +1,10 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Web workers may read assets but must not modify privileged backend code or state.
+set -euo pipefail
+dashboard=${QUICKBOX_DASHBOARD_DIR:-/srv/dashboard}
+chown -R root:root "$dashboard"
+chmod -R go-w "$dashboard"
+mkdir -p "$dashboard/db/sessions"
+chmod 700 "$dashboard/db/sessions"
+find "$dashboard/db/sessions" -type f -exec chmod 600 {} +

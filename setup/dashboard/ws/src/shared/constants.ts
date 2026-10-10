@@ -14,6 +14,9 @@ export default class Constant {
 }
 
 function getUsername() {
+    if (process.env.QUICKBOX_USERNAME && /^[A-Za-z0-9_-]+$/.test(process.env.QUICKBOX_USERNAME)) {
+        return process.env.QUICKBOX_USERNAME;
+    }
     let username = "";
     try {
         const masterConfigPath = "/srv/dashboard/db/master.txt";
